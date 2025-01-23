@@ -229,29 +229,6 @@ def create_conversation_graph():
 
     return workflow.compile()
 
-def main():
-    conversation_graph = create_conversation_graph()
-    conversation_graph.invoke({"input": "", "continue_conversation": True})
 
-if __name__ == "__main__":
-    main()
-
-
-'''
-The user wants to understand if their model has knowledge of C programming
-
-
-Question -> MODEL -> Question related to C Programming
-Question related to C Programming -> user_model -> answers ( option : Do RAG Here with precomputed tables )
-answers -> MODEL -> Validate and Answer User Question
-
-'''
-
-'''
-ollama 1 llm serving at a time
-
-i need to switch to VLLM ()
-
-
-'''
-
+graph = create_conversation_graph()
+# graph.invoke({"input": "", "continue_conversation": True})

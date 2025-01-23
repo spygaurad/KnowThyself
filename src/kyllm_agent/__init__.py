@@ -5,6 +5,7 @@ This module defines a custom agent graph that allows user to understand their mo
 
 """
 
-from kyllm_agent.graph import StateGraph
+from kyllm_agent.graph import graph
 
-__all__ = ["StateGraph"]
+# when using "from kyllm_agent import *" in other modules, the below definition only imports graph. Other functions needs to be manually imported.
+__all__ = ["graph"]
