@@ -11,8 +11,8 @@ from langgraph.graph import StateGraph, END
 import logging
 from dotenv import load_dotenv
 from langchain_community.embeddings import OllamaEmbeddings
-
-from generate_embed import find_nearest_function
+import numpy as np
+from src.utils.generate_embed import initialize_embeddings, find_nearest_function
 load_dotenv()
 
 # Configure logging
@@ -38,13 +38,17 @@ ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
 )
 
+all_embeddings = initialize_embeddings()
+all_embeddings = [np.array(embed) for embed in all_embeddings]
+
 def get_llm():
     return MAIN_LLM
 
 
 
 def analyze_question(state):
-    decision = find_nearest_function(state['input'])
+
+    decision = find_nearest_function(all_embeddings, state['input'])
     return {"decision": decision, "input": state["input"]}
 
 # Creating the code agent that could be way more technical
@@ -144,6 +148,7 @@ class UserInput(TypedDict):
     continue_conversation: bool
 
 def get_user_input(state: UserInput) -> UserInput:
+    return "Hello There"
     user_input = input("\nUser (ou 'q' to quit) : ")
     return {
         "input": user_input,

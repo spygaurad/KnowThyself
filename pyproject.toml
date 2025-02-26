@@ -17,6 +17,8 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "langchain-community>=0.2.17",
     "tavily-python>=0.4.0",
+    "langgraph-cli[inmem]>=0.1.68",
+    "scikit-learn>=1.6.1",
 ]
 
 
@@ -28,10 +30,10 @@ requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["langgraph.templates.react_agent", "react_agent"]
+packages = ["langgraph.templates.react_agent", "kyllm_agent"]
 [tool.setuptools.package-dir]
-"langgraph.templates.react_agent" = "src/react_agent"
-"react_agent" = "src/react_agent"
+"langgraph.templates.react_agent" = "src/kyllm_agent"
+"kyllm_agent" = "src/kyllm_agent"
 
 
 [tool.setuptools.package-data]
