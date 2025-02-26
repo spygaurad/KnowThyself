@@ -12,7 +12,7 @@ import logging
 from dotenv import load_dotenv
 from langchain_community.embeddings import OllamaEmbeddings
 
-from generate_embed import find_nearest_function
+from src.demo.generate_embed import find_nearest_function
 load_dotenv()
 
 # Configure logging
@@ -157,24 +157,35 @@ def process_question(state: UserInput):
     logging.info(f"{result['output']}")
     return state
 
+
+def local_interpretation(state:UserInput):
+    pass
+
+def global_interpretation(state:UserInput):
+    pass
+
+def help_desk(state:UserInput):
+    pass
+
 #Here is a simple 3 steps graph that is going to be working in the bellow "decision" condition
 def create_graph():
     workflow = StateGraph(AgentState)
 
     workflow.add_node("analyze", analyze_question)
+
+    workflow.add_node("local_interpretation_agent", local_interpretation)
+    workflow.add_node("global_interpretation_agent", global_interpretation)
+    workflow.add_node("help_desk_agent", help_desk)
+
     workflow.add_node("code_agent", answer_code_question)
     workflow.add_node("evaluate_agent", evaluate_answer)
-
     workflow.add_node("generic_agent", answer_generic_question)
-
     workflow.add_node("load_model", load_model)
     workflow.add_node("chart_generator", chart_generator)
-    workflow.add_node("study_attention", understand_attention)
     workflow.add_node("model_info", model_inquiry)
-
-
     workflow.add_node("validate_and_load_model", validate_and_load_model)
     workflow.add_node("get_user_input", get_user_input)
+
     workflow.add_edge("load_model", "get_user_input")
     workflow.add_edge("get_user_input", "validate_and_load_model")
 
@@ -182,25 +193,22 @@ def create_graph():
         "analyze",
         lambda x: x["decision"],
         {
-            "code": "code_agent",
-            "evaluate": "evaluate_agent",
+            "help_desk": "help_desk_agent",
             "general": "generic_agent",
-            "model": "load_model",
-            "chart": "chart_generator",
-            "attention": "study_attention",
-            "info": "model_info",
+            "local": "local_interpretation_agent",
+            "global": "global_interpretation_agent",
 
         }
     )
 
     workflow.set_entry_point("analyze")
-    workflow.add_edge("code_agent", END)
-    workflow.add_edge("evaluate_agent", END)
-    workflow.add_edge("generic_agent", END)
-    workflow.add_edge("validate_and_load_model", END)
-    workflow.add_edge("chart_generator", END)
-    workflow.add_edge("study_attention", END)
-    workflow.add_edge("model_info", END)
+    # workflow.add_edge("code_agent", END)
+    # workflow.add_edge("evaluate_agent", END)
+    workflow.add_edge("local_interpretation_agent", END)
+    workflow.add_edge("global_interpretation_agent", END)
+    workflow.add_edge("help_desk_agent", END)
+    # workflow.add_edge("study_attention", END)
+    # workflow.add_edge("model_info", END)
 
     return workflow.compile()
 
