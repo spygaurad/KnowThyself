@@ -8,7 +8,7 @@ __pycache__/
 .langgraph_api
 
 
-
+*.png
 
 *.egg-info/
 dist/
