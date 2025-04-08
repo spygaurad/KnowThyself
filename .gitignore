@@ -5,8 +5,7 @@ __pycache__/
 *.pyo
 *.pyd
 
-langgraph_api
-
+.langgraph_api
 
 
 
