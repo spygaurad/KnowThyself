@@ -3,5 +3,8 @@
   "graphs": {
     "agent": "./src/kyllm_agent/graph.py:graph"
   },
-  "env": ".env"
+  "env": ".env",
+  "http": {
+    "app": "./src/kyllm_agent/webapp.py:app"
+  }
 }

@@ -1,4 +1,13 @@
 from transformer_lens import HookedTransformer, ActivationCache
+import einops
+import torch
+from tqdm import tqdm
+from typing_extensions import get_args, Literal
+from typing import cast, Dict, List, Optional, Tuple, Union
+from collections import defaultdict
+import logging
+import numpy as np
+
 
 
 HeadName = Literal["previous_token_head", "duplicate_token_head", "induction_head"]
@@ -28,7 +37,7 @@ def is_lower_triangular(x: torch.Tensor) -> bool:
     if not is_square(x):
         return False
     return x.equal(x.tril())
-    
+
 
 def detect_head(
     model: HookedTransformer,

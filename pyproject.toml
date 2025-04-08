@@ -1,6 +1,6 @@
 [project]
 name = "kyllm-agent"
-version = "0.0.1"
+version = "0.0.2"
 description = "An agent in LangGraph that provides access to different interpretation tools for LLM understanding and interpretability"
 authors = [
     { name = "Suraj Prasai", email = "suraj.prasai97@gmail.com" },
@@ -9,6 +9,10 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
 dependencies = [
+    "torch==2.6.0",
+    "plotly==6.0.1",
+    "IPython==9.0.2",
+    "circuitsvis==1.43.3",
     "langgraph>=0.2.6",
     "langchain-openai>=0.1.22",
     "langchain-anthropic>=0.1.23",
@@ -17,6 +21,12 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "langchain-community>=0.2.17",
     "tavily-python>=0.4.0",
+    "langgraph-cli[inmem]>=0.1.68",
+    "scikit-learn>=1.6.1",
+    "transformer_lens>=2.15.0",
+    "matplotlib==3.10.1",
+    "fastapi==0.115.12",
+    "pydantic==2.11.2",
 ]
 
 
@@ -27,6 +37,10 @@ dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
 requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = ["kyllm_agent"]
+[tool.setuptools.package-dir]
+"kyllm_agent" = "src/kyllm_agent"
 
 
 [tool.setuptools.package-data]

@@ -13,27 +13,26 @@ def get_embedding(text):
 
 
 
-general_description = """Question falls under general open ended question.
-Example Questions:
-1) What is the height of Mt. everest?
-2) Who is the first president of America?
+general_description = """next word probability calculate
+1) Can you explain about induction heads?
+2) Can you describe it in brief?
+3) What is this about?
 """
 
 
 help_desk = """Question is about what this chat agent does.
 Example Questions:
 1) How can you help me?
-2) What are features of this application?
+2) Hi!
 """
 
-local_interpretation = """Question is about local interpretation techniques. This includes studying layers and heads info of a model.
-1) Analyse the patterns present in the attention heads.
-2) Which layer is responsible for pronouns resolution?
+local_interpretation = """view the attention pattern
+Example Questions:
+1) I want to study attention values in a model.
+2) How to visualize and study GPT attention pattern?
 """
 
-global_interpretation = """Question is about global interpretation. Questions related to the models benaviour.
-1) What is the behaviour of the model towards religious queries?
-2) In which scenarios is the model hallucinating?
+global_interpretation = """ablate layers
 """
 
 
@@ -60,7 +59,6 @@ def find_nearest_function(question):
     similarities = [cosine_similarity(question_embed.reshape(1, -1), embed.reshape(1, -1))[0][0] for embed in all_embeddings]
     # Find the best match
     best_match_index = np.argmax(similarities)
-    categories = ["help_desk", "general", "local", "global"]
+    categories = ["help_desk", "next_word_probs", "attention_pattern", "ablate_layers"]
     return categories[best_match_index]
-
 # print(find_nearest_function("/evaluate_model Question:Hi Answer:Hello"))
