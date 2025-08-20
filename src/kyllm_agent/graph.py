@@ -25,8 +25,8 @@ import logging
 from dotenv import load_dotenv
 from langchain_community.embeddings import OllamaEmbeddings
 
-from src.demo.generate_embed import find_nearest_function
-from src.transformer_lens_utils.indirect_obj_identification import check_next_word_prob, ablate_layers, attention_patterns
+from src.demo.generate_embed import find_nearest_function, retrieve_document
+from src.transformer_lens_utils.indirect_obj_identification import check_next_word_prob, ablate_layers, attention_patterns, get_attention_data_for_visualizer
 
 load_dotenv()
 
@@ -64,6 +64,14 @@ USER_MODEL = HookedTransformer.from_pretrained(
                 fold_ln=True,
                 refactor_factored_attn_matrices=True,
             )
+
+Llama_model = ollama.Ollama(
+                            # base_url=ollama_base_url, 
+                            # model='mapler/gpt2',
+                            # model = 'llama3.1:70b'
+                            model = 'llama2:13b-chat'
+
+                            )
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
@@ -151,6 +159,7 @@ def extract_in_json(question, template):
     return response
 
 def helo_desk_answerer(question):
+    relevant_document = retrieve_document(question)
     llm = get_llm()
 
     prompt = PromptTemplate.from_template(
@@ -162,10 +171,10 @@ def helo_desk_answerer(question):
         Real-time visual insights help users see how input changes affect outputs, 
         improving their comprehension of LLM decision-making. 
         The platform bridges the gap between technical complexity and user-friendly learning, 
-        making AI more accessible. Question:{question}"""
+        making AI more accessible. Relevant Document Content: {context} Question:{question}"""
     )
     chain = prompt | llm
-    response = chain.invoke({"question":question})
+    response = chain.invoke({"question":question, "context":relevant_document})
     return response
 # Creating the generic agent
 def answer_generic_question(state):
@@ -234,7 +243,8 @@ class AgentState(TypedDict):
     output: str
     model_name : str
     decision: str
-
+    # interaction_id: str
+    
 
 class UserInput(TypedDict):
     input: str
@@ -248,6 +258,8 @@ def get_most_recent_human_message(state: AgentState) -> Optional[str]:
             return msg.content
     return None  # Return None if no HumanMessage is found
 
+def generate_interaction_id() -> str:
+    return str(uuid4())
 
 def get_user_input(state: UserInput) -> UserInput:
     user_input = input("\nUser (ou 'q' to quit) : ")
@@ -293,17 +305,17 @@ def tool_use_response(state:AgentState):
     if "model"=="gpt2":
         model = USER_MODEL
     gpt2_str_tokens, gpt2_attn = attention_patterns(text, USER_MODEL, layer, head)
+    gpt_2_attn_all = get_attention_data_for_visualizer(text=text, model=USER_MODEL)
 
     file_path = "/home/prasais/projects/KnowYourLLM/attention_output.png"
     pil_image = Image.open(file_path)
     image_b64 = convert_to_base64(pil_image)
     llm_with_image_context = vision_llm.bind(images=[image_b64])
     response = llm_with_image_context.invoke("Explain the attention pattern in the image")
-
     # response = "Please play with the below visualization: \n"
-    # print("*"*200)
-    # print(type(gpt2_str_tokens))
-    # print(type(gpt2_attn))
+    print("*"*200)
+    print(gpt2_str_tokens)
+    print(gpt2_attn.tolist()[0])
 
     return {
             "messages": [
@@ -311,9 +323,11 @@ def tool_use_response(state:AgentState):
                     id=count,
                     # content="I am temporarily unable to serve Image based responses. \n However if you have access to logs, you can view the pattern there.",
                     content = response,
+                    timestamp= "2025-08-19T17:25:00.000Z",
                     additional_kwargs={
                             "token": gpt2_str_tokens,
                             "attention": gpt2_attn.tolist()[0],
+                            "bert_attention":gpt_2_attn_all,
                             "is_type_attention": True  # Flag to indicate this message has an attention matrix
                         },
                     type="ai"                 
@@ -324,7 +338,11 @@ def tool_use_response(state:AgentState):
 def global_interpretation(state:AgentState):
     global count
     user_message = get_most_recent_human_message(state)
-    response = ablate_layers(USER_MODEL, "","","")
+    # response = ablate_layers(USER_MODEL, "","","")
+    from datasets import load_dataset
+
+    toxicity_prompts = load_dataset("allenai/real-toxicity-prompts", split="train")
+
     return {
             "messages": [
                 AIMessage(
@@ -333,6 +351,19 @@ def global_interpretation(state:AgentState):
                 )
             ]
     }
+
+# def global_interpretation(state:AgentState):
+#     global count
+#     user_message = get_most_recent_human_message(state)
+#     response = ablate_layers(USER_MODEL, "","","")
+#     return {
+#             "messages": [
+#                 AIMessage(
+#                     id=count,
+#                     content=response,
+#                 )
+#             ]
+#     }
 
 def help_desk(state:AgentState):
     global count

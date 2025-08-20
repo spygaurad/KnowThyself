@@ -1,6 +1,8 @@
 
 .env
 
+files/
+
 __pycache__/
 *.pyc
 *.pyo
