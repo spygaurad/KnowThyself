@@ -36,15 +36,25 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 # Creating the first analysis agent to check the prompt structure
 # This print part helps you to trace the graph decisions
 
+def load_ollama(model_name):
+    return ollama.Ollama(model=model_name)
+
+def load_hooked_model(model_name):
+    return HookedTransformer.from_pretrained(
+                model_name,
+                center_unembed=True,
+                center_writing_weights=True,
+                fold_ln=True,
+                refactor_factored_attn_matrices=True,
+            )
+
+MAIN_LLM_NAME = 'gemma3:27b'
+llama_model_name = 'llama2:13b-chat'
+USER_MODEL_NAME = "gpt2-small"
+
 model = "ollama" # chatgpt
 if model == "ollama":
-    MAIN_LLM = ollama.Ollama(
-                            # base_url=ollama_base_url, 
-                            # model='mapler/gpt2',
-                            # model = 'llama3.1:70b'
-                            model = 'gemma3:27b'
-
-                            )
+    MAIN_LLM = load_ollama(MAIN_LLM_NAME)
 else:
     MAIN_LLM = ChatOpenAI()
 
@@ -57,19 +67,13 @@ vision_llm = MAIN_LLM
 
 # USER_MODEL = None
 # global USER_MODEL  # Access the global variable
-USER_MODEL = HookedTransformer.from_pretrained(
-                "gpt2-small",
-                center_unembed=True,
-                center_writing_weights=True,
-                fold_ln=True,
-                refactor_factored_attn_matrices=True,
-            )
+USER_MODEL = load_hooked_model(USER_MODEL_NAME)
 
 Llama_model = ollama.Ollama(
                             # base_url=ollama_base_url, 
                             # model='mapler/gpt2',
                             # model = 'llama3.1:70b'
-                            model = 'llama2:13b-chat'
+                            model = ''
 
                             )
 
@@ -88,8 +92,14 @@ def analyze_question(state):
     user_message = get_most_recent_human_message(state)
     try:
         tool_request = json.loads(user_message)
-        print("Tool Request: ", tool_request)
-        return {"decision": "visualization_tool_router"}
+        if "tool" in tool_request:
+            print("Tool Request True: ", tool_request)
+            return {"decision": "visualization_tool_router"}
+
+        elif "update_model" in tool_request:
+            print("Model Setting True: ", tool_request)
+            return {"decision": "load_model"}
+
     except:
         print("User Message: ##### ", user_message)
         decision = find_nearest_function(user_message)
@@ -193,9 +203,29 @@ def answer_generic_question(state):
     return {"output": response}
 
 def load_model(state):
-    response = "I support following models: \n 1. LLAMA \n 2. Mistral \n 3. GPT \n\n Provide me with the huggingface repo and I will help you understand your model."
-    print(response)
-    return {"output": response}
+    global USER_MODEL
+    global MAIN_LLM
+
+    user_message = get_most_recent_human_message(state)
+    model_request = json.loads(user_message)
+    requested_orchestrator = model_request['orchestrator_model']
+    requested_user_model = model_request['user_model']
+    if requested_orchestrator!=MAIN_LLM_NAME:
+        MAIN_LLM = load_ollama(requested_orchestrator)
+    
+    if requested_user_model!=USER_MODEL_NAME:
+        USER_MODEL - load_hooked_model(requested_user_model)
+
+    return {
+        "messages": [
+            AIMessage(
+                id=count,
+                content="Succesfully Loaded Orchestrator: " +requested_orchestrator + " and User Model: " + requested_user_model,        
+                type="ai"        
+
+                )
+            ]
+        }
 
 def validate_and_load_model(state):
     global USER_MODEL  # Access the global variable
@@ -323,7 +353,7 @@ def tool_use_response(state:AgentState):
                     id=count,
                     # content="I am temporarily unable to serve Image based responses. \n However if you have access to logs, you can view the pattern there.",
                     content = response,
-                    timestamp= "2025-08-19T17:25:00.000Z",
+                    # timestamp= "2025-08-19T17:25:00.000Z",
                     additional_kwargs={
                             "token": gpt2_str_tokens,
                             "attention": gpt2_attn.tolist()[0],
@@ -425,8 +455,8 @@ def create_conversation_graph():
     
     workflow.add_node("help_desk_agent", help_desk)
 
-    workflow.add_node("code_agent", answer_code_question)
-    workflow.add_node("evaluate_agent", evaluate_answer)
+    # workflow.add_node("code_agent", answer_code_question)
+    # workflow.add_node("evaluate_agent", evaluate_answer)
 
     # workflow.add_node("is_model_biased", is_model_biased)
     # workflow.add_node("is_model_robust_to_halucinnation", is_model_robust_to_halucinnation)
@@ -440,11 +470,11 @@ def create_conversation_graph():
     # workflow.add_node("get_head_importance", get_head_importance)
     workflow.add_node("get_layer_importance", get_layer_importance)
 
-    workflow.add_node("validate_and_load_model", validate_and_load_model)
-    workflow.add_node("get_user_input", get_user_input)
+    # workflow.add_node("validate_and_load_model", validate_and_load_model)
+    # workflow.add_node("get_user_input", get_user_input)
 
-    workflow.add_edge("load_model", "get_user_input")
-    workflow.add_edge("get_user_input", "validate_and_load_model")
+    # workflow.add_edge("load_model", "get_user_input")
+    # workflow.add_edge("get_user_input", "validate_and_load_model")
 
     workflow.add_conditional_edges(
         "analyze",
@@ -455,6 +485,7 @@ def create_conversation_graph():
             "attention_pattern": "local_interpretation_agent",
             "ablate_layers": "global_interpretation_agent",
             "visualization_tool_router" : "visualization_tool_router",
+            "load_model":"load_model",
 
         }
     )
@@ -465,6 +496,7 @@ def create_conversation_graph():
     workflow.add_edge("local_interpretation_agent", "get_layer_importance")
 
     workflow.add_edge("get_layer_importance", END)
+    workflow.add_edge("load_model", END)
 
     workflow.add_edge("visualization_tool_router", END)
     workflow.add_edge("global_interpretation_agent", END)
