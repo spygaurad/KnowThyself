@@ -7,6 +7,7 @@ from langchain_community.document_loaders import TextLoader, DirectoryLoader
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 from langchain_text_splitters import CharacterTextSplitter
+import os
 
 ollama_emb = OllamaEmbeddings(
     model="nomic-embed-text",
@@ -22,25 +23,30 @@ def get_embedding(text):
 #     return result.text_content
 
 def save_index():
+    document_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'documents')
+    # index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'indexes',"")
     loader = DirectoryLoader(
-    "/home/prasais/projects/KnowYourLLM/src/demo/documents",
-    # glob=".txt",
-    loader_cls=TextLoader, # Assumes plain text files
-    loader_kwargs={'encoding': 'utf-8'}, # Specify encoding if needed
-    show_progress=True,
-    use_multithreading=True # Can speed up loading for many files
-    )
+            document_path,
+            glob="**/*.txt",
+            loader_cls=TextLoader, # Assumes plain text files
+            loader_kwargs={'encoding': 'utf-8'}, # Specify encoding if needed
+            show_progress=True,
+            use_multithreading=True # Can speed up loading for many files
+        )
 
     documents = loader.load()
-    # print(documents)
     text_splitter = CharacterTextSplitter(chunk_size=4000, chunk_overlap=200)
     docs = text_splitter.split_documents(documents)
     db = FAISS.from_documents(docs, ollama_emb)
-    db.save_local("src/demo/faiss_index")
+    db.save_local("src/files/indexes/document_faiss_index")
+    return True
     # pass 
 
 def load_index():
-    new_db = FAISS.load_local("src/demo/faiss_index", ollama_emb, allow_dangerous_deserialization=True)
+    file_path = "src/files/indexes/document_faiss_index/index.faiss"
+    if not os.path.exists(file_path):
+        save_index()
+    new_db = FAISS.load_local("src/files/indexes/document_faiss_index", ollama_emb, allow_dangerous_deserialization=True)
     return new_db
 
 def retrieve_document(query):

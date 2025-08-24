@@ -31,6 +31,8 @@ ALLOWED_FOLDERS = {
     "documentation": os.path.join(BASE_DIR, "documentation"),
     "workflows": os.path.join(BASE_DIR, "workflows"),
     "tools": os.path.join(BASE_DIR, "tools"),
+
+
     # Add any other folders you want to expose if they exist under src/files/documents/
 }
 
@@ -102,6 +104,48 @@ async def get_file_content(
     else:
         # FastAPI's FileResponse automatically handles streaming and headers
         return FileResponse(path=file_path, media_type=mimetype, filename=filename)
+
+
+@app.get("/api/files/results")
+async def get_results_html(
+    filename: str = Query(..., description="HTML filename inside the results folder (e.g., report.html)")
+):
+    """
+    Serve an HTML file from the fixed 'results' folder.
+    Only .html / .htm files are allowed.
+    """
+    results_dir = os.path.join(BASE_DIR, "results")
+    if not results_dir or not os.path.isdir(results_dir):
+        raise HTTPException(status_code=500, detail="Results folder is not configured or missing on server.")
+
+    # Require .html/.htm extension
+    lowered = filename.lower()
+    if not (lowered.endswith(".html") or lowered.endswith(".htm")):
+        raise HTTPException(status_code=415, detail="Only .html or .htm files are allowed.")
+
+    # Build and sanitize path
+    file_path = os.path.join(results_dir, filename)
+    folder_real = os.path.realpath(results_dir)
+    file_real = os.path.realpath(file_path)
+
+    # Prevent directory traversal
+    try:
+        if os.path.commonpath([file_real, folder_real]) != folder_real:
+            raise HTTPException(status_code=403, detail="Access denied: Attempted directory traversal.")
+    except ValueError:
+        # Raised if paths are on different drives (Windows edge case)
+        raise HTTPException(status_code=403, detail="Access denied: Invalid path.")
+
+    if not os.path.exists(file_real) or not os.path.isfile(file_real):
+        raise HTTPException(status_code=404, detail="File not found in results folder.")
+
+    # Serve inline as HTML
+    return FileResponse(
+        path=file_real,
+        media_type="text/html; charset=utf-8",
+        filename=os.path.basename(file_real),
+    )
+
 
 @app.get("/get_model")
 def read_root():

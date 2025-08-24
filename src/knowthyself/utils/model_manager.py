@@ -65,6 +65,27 @@ class ModelManager:
                 refactor_factored_attn_matrices=True,
             )
         return self._user_model
+    
+    
+    def set_llama_model(self, custom_user_model):
+        """
+        Loads and returns the HookedTransformer model for interpretability.
+        """
+
+        try:
+            if self._llama_model is None:
+                print(f"INFO: Lazily loading Llama Model...")
+                self._llama_model = ollama.Ollama(
+                    model=custom_user_model # CORRECTED: Was hardcoded
+                )
+        except:
+            self._llama_model = ollama.Ollama(
+                model=self._config.LLAMA_USER_MODEL # CORRECTED: Was hardcoded
+            )
+
+        return self._llama_model
+
+
 
     @property
     def llama_model(self):

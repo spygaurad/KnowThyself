@@ -155,7 +155,7 @@ def get_attention_data_for_visualizer(model, text) -> dict:
     }
 
 
-def attention_patterns(text,model,layer, head):
+def attention_patterns(text,model,layer, head, filepath):
     # gpt2_text = "Natural language processing tasks, such as question answering, machine translation, reading comprehension, and summarization, are typically approached with supervised learning on taskspecific datasets."
     gpt2_text = text
     gpt2_tokens = model.to_tokens(gpt2_text)
@@ -172,7 +172,7 @@ def attention_patterns(text,model,layer, head):
     gpt2_attn = gpt2_attn_cache[attn_hook_name]
 
     # The 0 index below is for 0th head
-    plot_attention_to_file(gpt2_attn.cpu()[head], gpt2_str_tokens, filename="attention_output.png")
+    plot_attention_to_file(gpt2_attn.cpu()[head], gpt2_str_tokens, filename=filepath)
     return gpt2_str_tokens, gpt2_attn
     # return cv.attention.attention_patterns(tokens=gpt2_str_tokens, attention=gpt2_attn)
 
