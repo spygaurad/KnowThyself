@@ -1,10 +1,10 @@
 from langchain_community.llms import ollama
 import base64
 from io import BytesIO
-
+import os
 from IPython.display import HTML, display
 from PIL import Image
-
+from test_prompt import test_prompt
 
 def convert_to_base64(pil_image):
     """
@@ -34,9 +34,7 @@ def plt_img_base64(img_base64):
     display(HTML(image_html))
 
 
-file_path = "/home/prasais/projects/KnowYourLLM/attention_output.png"
-pil_image = Image.open(file_path)
-image_b64 = convert_to_base64(pil_image)
+
 
 llm = ollama.Ollama(
                         # base_url=ollama_base_url, 
@@ -44,6 +42,12 @@ llm = ollama.Ollama(
                         model = 'gemma3:27b'
                         )
 
-llm_with_image_context = llm.bind(images=[image_b64])
-response = llm_with_image_context.invoke("Explain the attention pattern in the image")
+response = llm.invoke(test_prompt)         
 print(response)
+
+file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'documents','results','attention_output.png')
+pil_image = Image.open(file_path)
+image_b64 = convert_to_base64(pil_image)
+# llm_with_image_context = llm.bind(images=[image_b64])
+# response = llm_with_image_context.invoke("Explain the attention pattern in the image")
+# print(response)

@@ -106,6 +106,7 @@ def convert_to_base64(pil_image):
     :param pil_image: PIL image
     :return: Re-sized Base64 string
     """
+    
     if pil_image.mode == "RGBA":
         pil_image = pil_image.convert("RGB")
 
@@ -475,6 +476,9 @@ def create_conversation_graph():
     workflow.add_conditional_edges(
         "analyze",
         lambda x: x["decision"],
+            categories = ["bias_detection", "transformerlens", "bertviz", "rag"]
+
+
         {
             "help_desk": "help_desk_agent",
             "next_word_probs": "next_word_probs_agent",
