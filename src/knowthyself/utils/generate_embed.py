@@ -13,7 +13,7 @@ from .prompts import bias_detection_description, attention_heatmap_transformerle
 from .model_manager import ModelManager
 
 def save_index():
-    document_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'documents')
+    document_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..","..", 'src', 'files', 'documents')
     # index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'indexes',"")
     loader = DirectoryLoader(
             document_path,
@@ -68,5 +68,4 @@ def find_nearest_function(question,model_manager, embeddings):
 
     # Find the best match
     best_match_index = np.argmax(similarities)
-    categories = ["bias_detection", "transformerlens", "bertviz", "rag", "load_model"]
-    return categories[best_match_index]
+    return best_match_index

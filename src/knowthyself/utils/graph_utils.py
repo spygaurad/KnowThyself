@@ -40,6 +40,8 @@ def generate_interaction_id() -> str:
 def analyze_question(state, model_manager, embeddings):
     user_message = get_most_recent_human_message(state)
     decision = find_nearest_function(user_message,model_manager, embeddings)
+    categories = ["bias_detection", "transformerlens", "bertviz", "rag", "load_model"]
+    decision = categories[decision]
     print("Analysing... Made Decision: ", decision)
     return {"decision": decision}
 

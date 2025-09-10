@@ -38,7 +38,11 @@ from src import agent_config
 
 from src.knowthyself.utils.graph_utils import get_most_recent_human_message, AgentState, UserInput, analyze_question
 from src.knowthyself.utils.model_manager import ModelManager
+
 from src.knowthyself.workflows.transformer_lens_workflow import transformerlens_agent
+from src.knowthyself.workflows.bias_detection_workflow import bias_evaluation_agent
+from src.knowthyself.workflows.bertviz_workflow import bertviz_agent
+from src.knowthyself.workflows.rag_workflow import rag_agent
 
 utils.logging.set_verbosity_error()  # Suppress standard warnings
 load_dotenv()
@@ -48,7 +52,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 def load_model_manager():
     MAIN_LLM_NAME = agent_config.ORCHESTRATOR_LLM
-    LLAMA_MODEL_NAME = agent_config.LLAMA_USER_MODEL
+    # LLAMA_MODEL_NAME = agent_config.LLAMA_USER_MODEL
     USER_MODEL_NAME = agent_config.GPT_USER_MODEL
     DEPLOYEMENT_TYPE = agent_config.DEPLOYEMENT_TYPE
 
@@ -299,14 +303,6 @@ def local_interpretation(state:AgentState):
             ]
     }
 
-def bertviz_agent(state:AgentState):
-    pass
-
-def rag_agent(state:AgentState):
-    pass
-
-def bias_detection_agent(state:AgentState):
-    pass
 
 def load_model(state:AgentState, model_manager: ModelManager):
     pass
@@ -317,9 +313,9 @@ def create_conversation_graph(model_manager: ModelManager, embeddings):
 
     workflow.add_node("analyze", partial(analyze_question, model_manager=model_manager, embeddings=embeddings))
     workflow.add_node("transformerlens_agent", partial(transformerlens_agent, model_manager=model_manager))
-    workflow.add_node("bertviz_agent", bertviz_agent)
-    workflow.add_node("rag_agent", rag_agent)
-    workflow.add_node("bias_detection_agent", bias_detection_agent)
+    workflow.add_node("bertviz_agent", partial(bertviz_agent, model_manager=model_manager))
+    workflow.add_node("rag_agent", partial(rag_agent, model_manager=model_manager))
+    workflow.add_node("bias_detection_agent", partial(bias_evaluation_agent, model_manager=model_manager))
     workflow.add_node("load_model", load_model)
 
     workflow.add_conditional_edges(

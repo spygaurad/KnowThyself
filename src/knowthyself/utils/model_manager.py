@@ -92,25 +92,25 @@ class ModelManager:
                 fold_ln=True,
                 refactor_factored_attn_matrices=True,
             )
-            return handle, {"Please ensure that the model is supported by Hooked Transformer."}
+            return handle, {}
 
         if self._user_backend == "ollama":
             handle = ollama_llm.Ollama(model=self._user_model_name)
             return handle, {}
 
-        if self._user_backend == "bertviz":
+        if self._user_backend == "huggingface":
             tok = AutoTokenizer.from_pretrained(self._user_model_name)
             mdl = AutoModel.from_pretrained(self._user_model_name, output_attentions=True)
-            return (mdl, tok), {"tokenizer": tok}
+            return (mdl, tok), {"model":mdl, "tokenizer": tok}
 
-        raise ValueError(f"Unknown backend: '{self._user_backend}' (expected 'ollama' | 'hooked' | 'bertviz')")
+        raise ValueError(f"Unknown backend: '{self._user_backend}' (expected 'ollama' | 'hooked' | 'huggingface')")
 
     def get_user_model(self) -> Any:
         """
         Lazy getter for user model:
           - returns HookedTransformer for 'hooked'
           - returns Ollama LLM for 'ollama'
-          - returns (HFModel, HFTokenizer) tuple for 'bertviz'
+          - returns (HFModel, HFTokenizer) tuple for 'huggingface'
         """
         with self._lock:
             if self._user_handle is None:
@@ -125,11 +125,12 @@ class ModelManager:
     def set_user_model(self, *, backend: str, model_name: str) -> None:
         """Change backend/model; next get_user_model() reloads it."""
         backend = backend.lower().strip()
-        if backend not in {"hooked", "ollama", "bertviz"}:
-            raise ValueError("backend must be one of: 'hooked', 'ollama', 'bertviz'")
+        if backend not in {"hooked", "ollama", "huggingface"}:
+            raise ValueError("backend must be one of: 'hooked', 'ollama', 'huggingface'")
         with self._lock:
             self._user_backend = backend
-            self._user_model_name = model_name
+            if model_name:
+                self._user_model_name = model_name
             self._user_handle = None
             self._user_extra = {}
 

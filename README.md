@@ -34,11 +34,8 @@ Routes user queries to agents (embedding/RAG + direct prediction), then explains
 ### Tool Agents
 
 - TransformerLens Agent — attention patterns & interventions
-
 - BertViz Agent — attention visualization (HF model + tokenizer)
-
 - RAG Explainer — retrieves/cites relevant literature
-
 - Bias Evaluator — toxicity, regard, HONEST scoring
 
 ### User Interface
@@ -61,9 +58,7 @@ python -m pip install --upgrade pip
 ### 2) Install from the repo root
 
 ```bash
-pip install .
-# or editable + dev extras if defined:
-# pip install -e ".[dev,all]"
+pip install -e .
 ```
 
 ### Local LLMs with Ollama
@@ -76,7 +71,7 @@ To setup Ollama locally, install & start it first: https://ollama.ai
 
 ```bash
 export DEPLOYEMENT_TYPE=ollama             # or "openai"
-export ORCHESTRATOR_LLM=gemma3:27b-it             # e.g., "llama3" or "gpt-4o-mini"
+export ORCHESTRATOR_LLM=gemma3:27b          # e.g., "llama3" or "gpt-4o-mini"
 export GPT_USER_MODEL=gpt2-small             # default user model name
 # export OPENAI_API_KEY=sk-...            # only if using OpenAI
 ```

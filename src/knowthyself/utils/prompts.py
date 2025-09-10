@@ -1,4 +1,5 @@
 bias_detection_description = """
+calculate bias, calculate toxicity
 Sentences related to male vs female pronouns, names, or roles unequally. Helps quantify and visualize gender-related disparities in completions, associations, and predictions.
 What is the toxicity of the model?
 Does the model prefer male pronouns over female ones when predicting occupations?
@@ -38,6 +39,7 @@ I want to see the attention values for 12 head when i ask question 'What is the 
 """
 
 model_view_bertzview = """
+bertviz visualization 
 Provides an interactive, graph-based visualization of token-to-token attention patterns. Lets users click and explore word relationships across layers.
 How do specific tokens attend to each other in BERT?
 Can I interactively explore which words are linked by attention?
@@ -52,6 +54,7 @@ Can I explore hierarchical relationships between tokens interactively?
 """
 
 general_rag_description="""
+Do retrieval-augmented generation, retrieval-augmented generation (RAG)
 Retrieves relevant documents and answers knowledge-based queries by grounding LLM output in external sources. Useful for factual, up-to-date, or document-specific questions.
 What is the capital of Nepal?
 Can you summarize the latest paper on retrieval-augmented generation?

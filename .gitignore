@@ -11,7 +11,7 @@ __pycache__/
 .langgraph_api
 
 
-*.png
+# *.png
 
 *.egg-info/
 dist/
