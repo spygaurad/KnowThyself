@@ -21,36 +21,32 @@ Is there bias toward positive sentiment over honesty in answers?
 """
 
 attention_heatmap_transformerlens = """
-Visualizes how transformer heads distribute attention across tokens. Provides interpretable heatmaps of attention matrices for each layer and head.
-Transformerlens is a library for visualizing and interpreting transformer models, particularly focusing on attention mechanisms. It allows users to inspect how different attention heads in various layers of a transformer model attend to different parts of the input sequence.
+across tokens, across layers, across heads
+Provides heatmaps of attention matrices for each layer and head, particularly focusing on attention. 
+It allows users to inspect how different attention heads in various layers
 Use TransformerLens to generate attention heatmaps for specific layers and heads.
 How much attention does each head give to specific tokens?
 Which attention heads are responsible for long-range dependencies?
-Can I visualize how the model attends to punctuation vs words?
 Do early layers attend differently than later layers?
 How do attention weights shift when I change one word in the input?
 Which heads specialize in copying vs syntax?
-Can I see token-by-token heatmaps of attention strength?
-How can I compare attention across layers visually?
 Do certain heads always focus on the start/end tokens?
-How can I diagnose spurious attention connections?
+How can I diagnose attention connections?
 Can i see the attention for 4th head? and 12 layer?
 I want to see the attention values for 12 head when i ask question 'What is the temperature of the surface of sun?'
 """
 
 model_view_bertzview = """
 bertviz visualization 
-Provides an interactive, graph-based visualization of token-to-token attention patterns. Lets users click and explore word relationships across layers.
-How do specific tokens attend to each other in BERT?
-Can I interactively explore which words are linked by attention?
-How can I compare self-attention across multiple layers?
-Which heads link semantically related words?
+How can I compare attention across layers visually?
+Provides an interactive, graph-based visualization 
+How can I compare across multiple layers?
 How do I visualize cross-attention patterns for a sentence?
 Can I explore attention flow from subject to object in a sentence?
-How do I view attention connections between question and answer tokens?
+How do I view attention connections between question and answer?
 Is there a way to click on tokens and see attention arcs?
-How do attention maps differ between fine-tuned and base BERT?
-Can I explore hierarchical relationships between tokens interactively?
+How do visualization maps differ between fine-tuned and base BERT?
+Can I explore hierarchical relationships between interactively?
 """
 
 general_rag_description="""

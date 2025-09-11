@@ -279,34 +279,8 @@ def load_model_manager():
 #             ]
 #     }
 
-def is_model_biased():
+def load_model(state):
     pass
-
-def local_interpretation(state:AgentState):
-    # global count
-    user_message = get_most_recent_human_message(state)
-
-    print("Tool Call Router")
-    # response = test_transformerlens()
-    response = "Please use the tool block on the left hand side to study attention patterns. :)  \n Feel free to explore other available tools as well!"
-    # response = "Hello"
-    # print(response)
-
-    return {
-            "messages": [
-                AIMessage(
-                    # id=count,
-                    content=response,        
-                    type="ai"        
-
-                )
-            ]
-    }
-
-
-def load_model(state:AgentState, model_manager: ModelManager):
-    pass
-
 
 def create_conversation_graph(model_manager: ModelManager, embeddings):
     workflow = StateGraph(AgentState)

@@ -40,18 +40,20 @@ def rag_agent(state: AgentState, model_manager: ModelManager) -> Dict[str, Any]:
       3) Use orchestrator LLM to produce an answer grounded in the retrieved context
       4) Return an AIMessage
     """
+
     # 1) Get orchestrator and user question
     MAIN_LLM = model_manager.get_orchestrator()
     question = (get_most_recent_human_message(state) or "").strip()
-
+    ollama_emb = model_manager._emb
     # 2) Retrieve context (be defensive if retriever fails)
     try:
-        context = retrieve_document(question)  # must exist in your codebase
+        context = retrieve_document(question, ollama_emb=ollama_emb)  # must exist in your codebase
         if context is None:
             context = ""
     except Exception as e:
         context = ""
         # You can log `e` internally if you have logging.
+    print("Retrieved context:", context)
 
     # 3) Build and run the chain
     chain = HELPDESK_PROMPT | MAIN_LLM
@@ -59,7 +61,7 @@ def rag_agent(state: AgentState, model_manager: ModelManager) -> Dict[str, Any]:
         result = chain.invoke({"question": question, "context": context})
         
     except Exception as e:
-        answer_text = (
+        result = (
             "I couldn't generate an answer right now. "
             "Please try rephrasing your question or attempting again."
         )

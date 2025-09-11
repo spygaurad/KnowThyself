@@ -59,8 +59,14 @@ async def list_files(folder: str = Query(..., description="The name of the folde
 
     try:
         # List only files, exclude directories
-        files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-        return {"files": files}
+        # files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+        # return {"files": files}
+        pdf_files = [
+            f for f in os.listdir(folder_path)
+            if os.path.isfile(os.path.join(folder_path, f)) and f.lower().endswith(".pdf")
+        ]
+        return {"files": pdf_files}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 

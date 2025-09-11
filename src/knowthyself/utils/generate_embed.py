@@ -12,7 +12,7 @@ import os
 from .prompts import bias_detection_description, attention_heatmap_transformerlens, model_view_bertzview, general_rag_description, load_model_description
 from .model_manager import ModelManager
 
-def save_index():
+def save_index(ollama_emb):
     document_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..","..", 'src', 'files', 'documents')
     # index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'indexes',"")
     loader = DirectoryLoader(
@@ -28,23 +28,26 @@ def save_index():
     text_splitter = CharacterTextSplitter(chunk_size=4000, chunk_overlap=200)
     docs = text_splitter.split_documents(documents)
     db = FAISS.from_documents(docs, ollama_emb)
-    db.save_local("src/files/indexes/document_faiss_index")
+    db.save_local(document_path + "/../indexes/document_faiss_index")
     return True
     # pass 
 
-def load_index():
-    file_path = "src/files/indexes/document_faiss_index/index.faiss"
+def load_index(ollama_emb):
+    document_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..","..", 'src', 'files', 'documents')
+    file_path = document_path + "/../indexes/document_faiss_index/index.faiss"
+    print("Loading index" * 20)
+    print(file_path)
     if not os.path.exists(file_path):
-        save_index()
-    new_db = FAISS.load_local("src/files/indexes/document_faiss_index", ollama_emb, allow_dangerous_deserialization=True)
+        save_index(ollama_emb)
+    new_db = FAISS.load_local(document_path + "/../indexes/document_faiss_index", ollama_emb, allow_dangerous_deserialization=True)
     return new_db
 
-def retrieve_document(query):
-    db = load_index()
+def retrieve_document(query,ollama_emb):
+    db = load_index(ollama_emb)
     retriever = db.as_retriever()
     docs = retriever.invoke(query)
     content = ["".join(item.page_content) for item in docs][0]
-    # print(content)
+    print(content)
     return content
 
 
