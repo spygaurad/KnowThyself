@@ -4,7 +4,9 @@ Overview
 KnowThyself helps students, engineers, and researchers explore how language models work. Users upload a model, ask natural-language questions, and receive interactive visualizations with grounded explanations. A supervisor LLM routes tasks to modular tool agents (TransformerLens, BertViz, Bias Evaluator), while a RAG component cites relevant interpretability literature. The system supports local deployment (e.g., Ollama) and common open-model families (e.g., GPT-2, Llama).
 
 <!-- <img width="1140" alt="image" src="https://github.com/Gentopia-AI/Gentopia/assets/65674752/8cb8ec87-6e50-44d5-aedc-c4994e9a8aa2"> -->
-![KnowThyself Screenshot](src/assets/knowthyself_arch_diag.png)
+<!-- ![KnowThyself Architecture Diagram](src/assets/knowthyself_arch_diag.png) -->
+![KnowThyself Architecture Diagram](src/assets/Overall-Fig.pdf)
+
 
 Live Demo: http://34.229.129.135:4173
 <!-- Anonymous Code: https://anonymous.4open.science/r/KnowThyself -->
