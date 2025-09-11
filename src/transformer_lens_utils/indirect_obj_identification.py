@@ -100,7 +100,62 @@ def check_next_word_prob(model, example_prompt, example_answer):
     return sent + "\n".join(utils.test_prompt(example_prompt, example_answer, model, prepend_bos=True))
 
 
-def attention_patterns(text,model,layer, head):
+def get_attention_data_for_visualizer(model, text) -> dict:
+    """
+    Generates the data structure required by BertHeadVisualizer's additionalKwargs.
+
+    Args:
+        model_name: The name of the TransformerLens model (e.g., "gpt2-small").
+        text: The input text to analyze.
+
+    Returns:
+        A dictionary formatted to be used as additional_kwargs for the frontend.
+    """
+    # model = HookedTransformer.from_pretrained(model_name)
+
+
+    tokens_tensor = model.to_tokens(text)
+    str_tokens = model.to_str_tokens(text)
+
+    with torch.no_grad():
+        _, cache = model.run_with_cache(tokens_tensor)
+
+    num_layers = model.cfg.n_layers
+    
+    # Initialize the attn structure: [layer][head][query_idx][key_idx]
+    all_layers_attention = []
+
+    for layer_idx in range(num_layers):
+        # Get attention for the current layer: [batch, head, query_pos, key_pos]
+        layer_attention_tensor = cache[f"blocks.{layer_idx}.attn.hook_pattern"]
+
+        # Select the batch dimension (usually 0 for a single input)
+        # Move to CPU and convert to a nested Python list (number[][][])
+        layer_attention_list = layer_attention_tensor[0].cpu().tolist()
+        all_layers_attention.append(layer_attention_list)
+
+    # For self-attention, right_text is the same as left_text
+    right_text = str_tokens
+
+    # Construct the AttentionDataObject as a Python dictionary
+    bert_attention_data_object = {
+        "name": "GPT2",
+        "attn": all_layers_attention,
+        "left_text": str_tokens,
+        "right_text": right_text,
+    }
+
+    # The 'token' key in your frontend component refers to the string tokens
+    # (what you've called 'left_text' or 'str_tokens')
+    return {
+        "token": str_tokens,
+        "bert_attention": bert_attention_data_object,
+        # You might also want to add 'is_type_attention: True' if that flag is still used
+        # "is_type_attention": True
+    }
+
+
+def attention_patterns(text,model,layer, head, filepath):
     # gpt2_text = "Natural language processing tasks, such as question answering, machine translation, reading comprehension, and summarization, are typically approached with supervised learning on taskspecific datasets."
     gpt2_text = text
     gpt2_tokens = model.to_tokens(gpt2_text)
@@ -117,7 +172,7 @@ def attention_patterns(text,model,layer, head):
     gpt2_attn = gpt2_attn_cache[attn_hook_name]
 
     # The 0 index below is for 0th head
-    plot_attention_to_file(gpt2_attn.cpu()[head], gpt2_str_tokens, filename="attention_output.png")
+    plot_attention_to_file(gpt2_attn.cpu()[head], gpt2_str_tokens, filename=filepath)
     return gpt2_str_tokens, gpt2_attn
     # return cv.attention.attention_patterns(tokens=gpt2_str_tokens, attention=gpt2_attn)
 

@@ -1,10 +1,10 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "agent": "./src/kyllm_agent/graph.py:graph"
+    "agent": "./src/knowthyself/graph.py:graph"
   },
   "env": ".env",
   "http": {
-    "app": "./src/kyllm_agent/webapp.py:app"
+    "app": "./src/webapp.py:app"
   }
 }

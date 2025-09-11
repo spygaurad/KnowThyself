@@ -1,13 +1,19 @@
+torch==2.6.0
+plotly==6.0.1
+IPython==9.0.2
+circuitsvis==1.43.3
 langgraph>=0.2.6
-langchain-openai>=0.1.22
-langchain-anthropic>=0.1.23
-langchain>=0.2.14
-langchain-fireworks>=0.1.7
 python-dotenv>=1.0.1
-langchain-community>=0.2.17
 tavily-python>=0.4.0
 langgraph-cli[inmem]>=0.1.68
 scikit-learn>=1.6.1
+transformer_lens>=2.15.0
+matplotlib==3.10.1
+fastapi==0.115.12
+pydantic==2.11.2
+markitdown[all]==0.1.1
+faiss-cpu==1.7.4
+tiktoken>=0.7.0
 
 [dev]
 mypy>=1.11.1

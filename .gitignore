@@ -1,15 +1,17 @@
 
 .env
 
+files/
+
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-.langgraph_api
+.langgraph_api/
+*.pckl
 
-
-*.png
+# *.png
 
 *.egg-info/
 dist/

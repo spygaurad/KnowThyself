@@ -13,61 +13,62 @@ import json
 from PIL import Image
 import base64
 from io import BytesIO
+from pathlib import Path
 
 
 from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.graph import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import AIMessage
+from transformers import AutoTokenizer, AutoModel, utils
+from bertviz import model_view
+from IPython.display import HTML
+from fastapi.responses import HTMLResponse
 
 from langgraph.graph import StateGraph, END
 import logging
 from dotenv import load_dotenv
 from langchain_community.embeddings import OllamaEmbeddings
 
-from src.demo.generate_embed import find_nearest_function
-from src.transformer_lens_utils.indirect_obj_identification import check_next_word_prob, ablate_layers, attention_patterns
-
+from src.demo.generate_embed import find_nearest_function, retrieve_document
+from src.transformer_lens_utils.indirect_obj_identification import check_next_word_prob, ablate_layers, attention_patterns, get_attention_data_for_visualizer
+from src import agent_config
+utils.logging.set_verbosity_error()  # Suppress standard warnings
 load_dotenv()
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 # Creating the first analysis agent to check the prompt structure
 # This print part helps you to trace the graph decisions
 
-model = "ollama" # chatgpt
-if model == "ollama":
-    MAIN_LLM = ollama.Ollama(
-                            # base_url=ollama_base_url, 
-                            # model='mapler/gpt2',
-                            # model = 'llama3.1:70b'
-                            model = 'gemma3:27b'
+def load_ollama(model_name):
+    return ollama.Ollama(model=model_name)
 
-                            )
-else:
-    MAIN_LLM = ChatOpenAI()
-
-# vision_llm = ollama.Ollama(
-#                         # base_url=ollama_base_url, 
-#                         # model='mapler/gpt2',
-#                         model = 'gemma3:27b'
-#                         )
-vision_llm = MAIN_LLM
-
-# USER_MODEL = None
-# global USER_MODEL  # Access the global variable
-USER_MODEL = HookedTransformer.from_pretrained(
-                "gpt2-small",
+def load_hooked_model(model_name):
+    return HookedTransformer.from_pretrained(
+                model_name,
                 center_unembed=True,
                 center_writing_weights=True,
                 fold_ln=True,
                 refactor_factored_attn_matrices=True,
             )
 
-ollama_emb = OllamaEmbeddings(
-    model="nomic-embed-text",
-)
+MAIN_LLM_NAME = agent_config.ORCHESTRATOR_LLM
+LLAMA_MODEL_NAME = agent_config.LLAMA_USER_MODEL
+USER_MODEL_NAME = agent_config.GPT_USER_MODEL
+DEPLOYEMENT_TYPE = agent_config.DEPLOYEMENT_TYPE
+
+if DEPLOYEMENT_TYPE == "ollama":
+    MAIN_LLM = load_ollama(MAIN_LLM_NAME)
+else:
+    MAIN_LLM = ChatOpenAI()
+
+vision_llm = MAIN_LLM
+USER_MODEL = load_hooked_model(USER_MODEL_NAME)
+# Llama_model = ollama.Ollama(model = LLAMA_MODEL_NAME)
+Llama_model = ollama.Ollama(model = USER_MODEL_NAME)
+
+ollama_emb = OllamaEmbeddings(model="nomic-embed-text")
 
 def get_llm():
     return MAIN_LLM
@@ -80,8 +81,16 @@ def analyze_question(state):
     user_message = get_most_recent_human_message(state)
     try:
         tool_request = json.loads(user_message)
-        print("Tool Request: ", tool_request)
-        return {"decision": "visualization_tool_router"}
+        if "tool" in tool_request:
+            if "visualization" in tool_request:
+                return {"decision":"bert_visualization"}
+            print("Tool Request True: ", tool_request)
+            return {"decision": "visualization_tool_router"}
+
+        elif "update_model" in tool_request:
+            print("Model Setting True: ", tool_request)
+            return {"decision": "load_model"}
+
     except:
         print("User Message: ##### ", user_message)
         decision = find_nearest_function(user_message)
@@ -97,6 +106,7 @@ def convert_to_base64(pil_image):
     :param pil_image: PIL image
     :return: Re-sized Base64 string
     """
+    
     if pil_image.mode == "RGBA":
         pil_image = pil_image.convert("RGB")
 
@@ -105,18 +115,7 @@ def convert_to_base64(pil_image):
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
     return img_str
 
-# Creating the code agent that could be way more technical
-def answer_code_question(state):
 
-    prompt = PromptTemplate.from_template(
-        "Provide short answer to given question : {input}"
-    )
-    chain = prompt | USER_MODEL
-    response = chain.invoke({"messages": state["messages"]})
-    # logging.info(f"User Model Answered: {response}")
-    logging.info(f"User Model Answered: \n")
-
-    return {"output": response}
 
 def preprocess(state):
     user_input = state["messages"].lower()
@@ -151,6 +150,7 @@ def extract_in_json(question, template):
     return response
 
 def helo_desk_answerer(question):
+    relevant_document = retrieve_document(question)
     llm = get_llm()
 
     prompt = PromptTemplate.from_template(
@@ -162,11 +162,12 @@ def helo_desk_answerer(question):
         Real-time visual insights help users see how input changes affect outputs, 
         improving their comprehension of LLM decision-making. 
         The platform bridges the gap between technical complexity and user-friendly learning, 
-        making AI more accessible. Question:{question}"""
+        making AI more accessible. Relevant Document Content: {context} Question:{question}"""
     )
     chain = prompt | llm
-    response = chain.invoke({"question":question})
+    response = chain.invoke({"question":question, "context":relevant_document})
     return response
+
 # Creating the generic agent
 def answer_generic_question(state):
 
@@ -184,31 +185,32 @@ def answer_generic_question(state):
     return {"output": response}
 
 def load_model(state):
-    response = "I support following models: \n 1. LLAMA \n 2. Mistral \n 3. GPT \n\n Provide me with the huggingface repo and I will help you understand your model."
-    print(response)
-    return {"output": response}
+    global USER_MODEL
+    global MAIN_LLM
 
-def validate_and_load_model(state):
-    global USER_MODEL  # Access the global variable
-    model_name = state["messages"]
-
-    USER_MODEL = ollama.Ollama(model=model_name) #'llama2:7b'
+    user_message = get_most_recent_human_message(state)
+    model_request = json.loads(user_message)
+    requested_orchestrator = model_request['orchestrator_model']
+    requested_user_model = model_request['user_model']
+    if requested_orchestrator!=MAIN_LLM_NAME:
+        MAIN_LLM = load_ollama(requested_orchestrator)
     
-    try:
-        answer_code_question(state)
-        response = "Succesfully loaded "+ model_name +". You can ask questions to your model now."
+    if requested_user_model!=USER_MODEL_NAME:
+        USER_MODEL - load_hooked_model(requested_user_model)
 
-    except:
-        model_name = ""
-        USER_MODEL = None
-        response = "Invalid Model. Please provide me with Huggingface Model"
-    # Validate model
+    return {
+        "messages": [
+            AIMessage(
+                id=count,
+                content="Succesfully Loaded Orchestrator: " +requested_orchestrator + " and User Model: " + requested_user_model,        
+                type="ai"        
 
-    return {"model_name":state["messages"], "output": response}
+                )
+            ]
+        }
+
 
 def test_transformerlens():
-
-    
     # Validate model
     print("Running TransformerLens")
     response = check_next_word_prob(USER_MODEL, "", "")
@@ -216,6 +218,72 @@ def test_transformerlens():
     # return {"model_name":state["messages"], "output": response}
     return "\n".join(response)
 
+def _html_from_ipy(obj: HTML) -> str:
+    if getattr(obj, "data", None) is not None:
+        return obj.data
+    if hasattr(obj, "_repr_html_"):
+        return obj._repr_html_() or ""
+    return str(obj)
+
+
+def write_model_view_html(html: str, filename: str = "model_view.html") -> str:
+    """Atomically write HTML to viz_static/model_view.html and return its public URL."""
+
+    BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'documents')
+
+
+    # A secure mapping of front-end tab names to their actual server-side directory paths.
+    # This prevents malicious users from requesting arbitrary file paths.
+    ALLOWED_FOLDERS = {
+        "documentation": os.path.join(BASE_DIR, "documentation"),
+        "workflows": os.path.join(BASE_DIR, "workflows"),
+        "tools": os.path.join(BASE_DIR, "tools"),
+        "results": os.path.join(BASE_DIR, "results"),
+
+        # Add any other folders you want to expose if they exist under src/files/documents/
+    }
+
+    VIZ_DIR = Path(os.path.join(BASE_DIR, "results"))
+    # VIZ_DIR.mkdir(exist_ok=True)
+
+    target = VIZ_DIR / filename
+    tmp = VIZ_DIR / (filename + ".tmp")
+    tmp.write_text(html, encoding="utf-8")
+    tmp.replace(target)  # atomic on same filesystem
+    # add a cache-buster query so the browser doesn’t reuse stale content
+    return True
+
+def get_model_view(state):
+    model_name = "microsoft/xtremedistil-l12-h384-uncased"  # Find popular HuggingFace models here: https://huggingface.co/models
+    input_text = "The cat sat on the mat"  
+    model = AutoModel.from_pretrained(model_name, output_attentions=True)  # Configure model to return attention values
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    inputs = tokenizer.encode(input_text, return_tensors='pt')  # Tokenize input text
+    outputs = model(inputs)  # Run model
+    attention = outputs[-1]  # Retrieve attention from model outputs
+    tokens = tokenizer.convert_ids_to_tokens(inputs[0])  # Convert input ids to token strings
+    model_view_page = model_view(attention, tokens, html_action="return")  # Display model view
+    html_str = _html_from_ipy(model_view_page)
+    file_saved_status = write_model_view_html(html_str, filename="model_view.html")
+    
+    if file_saved_status:
+        content = "Sorry"
+        
+
+    return {
+            "messages": [
+                AIMessage(
+                    id=count,
+                    # content="I am temporarily unable to serve Image based responses. \n However if you have access to logs, you can view the pattern there.",
+                    content = "Bertviz Visualizations",
+                    # timestamp= "2025-08-19T17:25:00.000Z",
+                    additional_kwargs={
+                            "bert_viz_view": "model_view.html",
+                        },
+                    type="ai"                 
+                )
+            ]
+    }
 
 
 def understand_attention(state):
@@ -234,7 +302,8 @@ class AgentState(TypedDict):
     output: str
     model_name : str
     decision: str
-
+    # interaction_id: str
+    
 
 class UserInput(TypedDict):
     input: str
@@ -248,13 +317,10 @@ def get_most_recent_human_message(state: AgentState) -> Optional[str]:
             return msg.content
     return None  # Return None if no HumanMessage is found
 
+def generate_interaction_id() -> str:
+    return str(uuid4())
 
-def get_user_input(state: UserInput) -> UserInput:
-    user_input = input("\nUser (ou 'q' to quit) : ")
-    return {
-        "messages": user_input,
-        "continue_conversation": user_input.lower() != 'q'
-    }
+
 
 def process_question(state: UserInput):
     graph = create_graph()
@@ -292,18 +358,20 @@ def tool_use_response(state:AgentState):
     print("user uploaded model: ", model)
     if "model"=="gpt2":
         model = USER_MODEL
-    gpt2_str_tokens, gpt2_attn = attention_patterns(text, USER_MODEL, layer, head)
+    filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', "..", 'src', 'files', 'documents', "results", "attention_output.png")
+    gpt2_str_tokens, gpt2_attn = attention_patterns(text, USER_MODEL, layer, head, filepath)
+    # gpt_2_attn_all = get_attention_data_for_visualizer(text=text, model=USER_MODEL)
 
-    file_path = "/home/prasais/projects/KnowYourLLM/attention_output.png"
-    pil_image = Image.open(file_path)
+    # file_path = "/home/prasais/projects/KnowYourLLM/attention_output.png"
+    pil_image = Image.open(filepath)
     image_b64 = convert_to_base64(pil_image)
     llm_with_image_context = vision_llm.bind(images=[image_b64])
     response = llm_with_image_context.invoke("Explain the attention pattern in the image")
-
     # response = "Please play with the below visualization: \n"
-    # print("*"*200)
-    # print(type(gpt2_str_tokens))
-    # print(type(gpt2_attn))
+    print("*"*200)
+    # print(gpt2_str_tokens)
+    # print(gpt2_attn.tolist()[0])
+    print(response)
 
     return {
             "messages": [
@@ -311,10 +379,12 @@ def tool_use_response(state:AgentState):
                     id=count,
                     # content="I am temporarily unable to serve Image based responses. \n However if you have access to logs, you can view the pattern there.",
                     content = response,
+                    # timestamp= "2025-08-19T17:25:00.000Z",
                     additional_kwargs={
                             "token": gpt2_str_tokens,
                             "attention": gpt2_attn.tolist()[0],
-                            "is_type_attention": True  # Flag to indicate this message has an attention matrix
+                            # "bert_attention":gpt_2_attn_all,
+                            # "is_type_attention": True  # Flag to indicate this message has an attention matrix
                         },
                     type="ai"                 
                 )
@@ -324,31 +394,34 @@ def tool_use_response(state:AgentState):
 def global_interpretation(state:AgentState):
     global count
     user_message = get_most_recent_human_message(state)
-    response = ablate_layers(USER_MODEL, "","","")
+    # response = ablate_layers(USER_MODEL, "","","")
+    from datasets import load_dataset
+
+    toxicity_prompts = load_dataset("allenai/real-toxicity-prompts", split="train")
+
     return {
             "messages": [
                 AIMessage(
                     id=count,
                     content=response,
+                    type="ai"
                 )
             ]
     }
 
+
 def help_desk(state:AgentState):
     global count
     user_message = get_most_recent_human_message(state)
-
-    print("You are reaching out to help desk agent")
-    # response = test_transformerlens()
     response = helo_desk_answerer(user_message)
-    # response = "Hello"
-    # print(response)
+    print("You are reaching out to help desk agent", " ", response)
 
     return {
             "messages": [
                 AIMessage(
                     id=count,
                     content=response,
+                    type="ai"  
                 )
             ]
     }
@@ -371,9 +444,6 @@ def local_interpretation(state:AgentState):
                 AIMessage(
                     id=count,
                     content=response,        
-                    additional_kwargs={
-                            "type": "llm_visualization",
-                            },
                     type="ai"        
 
                 )
@@ -390,59 +460,51 @@ def create_conversation_graph():
     workflow.add_node("local_interpretation_agent", local_interpretation)
     workflow.add_node("global_interpretation_agent", global_interpretation)
     workflow.add_node("visualization_tool_router", tool_use_response)
+    workflow.add_node("bert_visualization_router", get_model_view)
 
     
     workflow.add_node("help_desk_agent", help_desk)
-
-    workflow.add_node("code_agent", answer_code_question)
-    workflow.add_node("evaluate_agent", evaluate_answer)
-
-    # workflow.add_node("is_model_biased", is_model_biased)
-    # workflow.add_node("is_model_robust_to_halucinnation", is_model_robust_to_halucinnation)
-
 
     workflow.add_node("generic_agent", answer_generic_question)
     workflow.add_node("next_word_probs_agent", next_word_prob)
 
     
     workflow.add_node("load_model", load_model)
-    # workflow.add_node("get_head_importance", get_head_importance)
     workflow.add_node("get_layer_importance", get_layer_importance)
 
-    workflow.add_node("validate_and_load_model", validate_and_load_model)
-    workflow.add_node("get_user_input", get_user_input)
-
-    workflow.add_edge("load_model", "get_user_input")
-    workflow.add_edge("get_user_input", "validate_and_load_model")
 
     workflow.add_conditional_edges(
         "analyze",
         lambda x: x["decision"],
+            categories = ["bias_detection", "transformerlens", "bertviz", "rag"]
+
+
         {
             "help_desk": "help_desk_agent",
             "next_word_probs": "next_word_probs_agent",
             "attention_pattern": "local_interpretation_agent",
             "ablate_layers": "global_interpretation_agent",
             "visualization_tool_router" : "visualization_tool_router",
+            "bert_visualization":"bert_visualization_router",
+            "load_model":"load_model",
 
         }
     )
 
     workflow.set_entry_point("analyze")
-    # workflow.add_edge("code_agent", END)
-    # workflow.add_edge("evaluate_agent", END)
     workflow.add_edge("local_interpretation_agent", "get_layer_importance")
-
     workflow.add_edge("get_layer_importance", END)
+
+    workflow.add_edge("bert_visualization_router", END)
+
+    workflow.add_edge("load_model", END)
 
     workflow.add_edge("visualization_tool_router", END)
     workflow.add_edge("global_interpretation_agent", END)
-    # workflow.add_edge("is_model_biased", END)
-    # workflow.add_edge("is_model_robust_to_halucinnation", END)
+
 
     workflow.add_edge("help_desk_agent", END)
-    # workflow.add_edge("study_attention", END)
-    # workflow.add_edge("model_info", END)
+
     return workflow.compile()
 
 graph = create_conversation_graph()
