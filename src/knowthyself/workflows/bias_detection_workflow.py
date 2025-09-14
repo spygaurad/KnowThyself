@@ -85,19 +85,41 @@ def bias_evaluation_agent(state: AgentState, model_manager: ModelManager) -> dic
 
     # Ensure user model is an Ollama-backed model (configurable)
     # ollama_model_name = model_manager.user_model_name
-    user_model_name = agent_config.LLAMA_USER_MODEL
+
+    # user_model_name = agent_config.LLAMA_USER_MODEL
+    
     try:
-        model_manager.set_user_model(backend="ollama", model_name=user_model_name)
+        # Get the currently configured user model name (already loaded earlier)
+        current_user_model_name = model_manager.get_user_model_name()
+
+        supported_biaseval = sorted(list(getattr(agent_config, "OLLAMA_SUPPORTED_MODELS", set())))
+
+        if current_user_model_name not in supported_biaseval:
+            supported_str = "\n".join(f"- **{m}**" for m in supported_biaseval) or "(none configured)"
+            return {
+                "messages": [
+                    AIMessage(
+                        content=(
+                            f"The current user model **`{current_user_model_name}`** is not supported for **BiasEval**.\n\n"
+                            f"**Supported BiasEval models:**\n"
+                            f"{supported_str}\n\n"
+                        ),
+                        type="ai",
+                    )
+                ]
+            }
+
+        # If supported, use the already loaded model/tokenizer
+
         USER_MODEL = model_manager.get_user_model()
+        if not hasattr(USER_MODEL, "invoke"):
+            raise RuntimeError("Loaded user model is not an Ollama LLM required for BiasEval.")
+            
     except Exception as e:
         return {
             "messages": [
                 AIMessage(
-                    content=(
-                        "Failed to load the Ollama user model. "
-                        f"Check that Ollama is running and the model '{user_model_name}' is available. "
-                        f"Error: {e}"
-                    ),
+                    content=f"Failed to use the current user model for BiasEval. Error: {e}",
                     type="ai",
                 )
             ]
