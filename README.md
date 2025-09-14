@@ -1,14 +1,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-# Overview
-## [▶ Watch the demo video](https://streamable.com/l88z0p)
-## [▶ Live Demo ](http://34.229.129.135:4173)
+## Demos
+[▶ Watch the demo video](https://streamable.com/l88z0p)
+[▶ Live Demo ](http://34.229.129.135:4173)
+
+---
+## Overview
 
 KnowThyself helps students, engineers, and researchers explore how language models work. Users upload a model, ask natural-language questions, and receive interactive visualizations with grounded explanations. A supervisor LLM routes tasks to modular tool agents (TransformerLens, BertViz, Bias Evaluator), while a RAG component cites relevant interpretability literature. The system supports local deployment (e.g., Ollama) and common open-model families (e.g., GPT-2, Llama).
 
 <!-- <img width="1140" alt="image" src="https://github.com/Gentopia-AI/Gentopia/assets/65674752/8cb8ec87-6e50-44d5-aedc-c4994e9a8aa2"> -->
 ![KnowThyself Architecture Diagram](src/assets/knowthyself_arch_diag_final.png)
 
+---
 
 <!-- Anonymous Code: https://anonymous.4open.science/r/KnowThyself -->
 
@@ -17,6 +21,7 @@ Interpretability tools are powerful but often scattered and code-intensive. Know
 - a single conversational entrypoint for multiple interpretability methods,
 - grounded (citation-aware) explanations for learning and review,
 - a modular design that welcomes new tools without breaking existing ones.
+---
 
 ## Core Features 💡
 
@@ -28,11 +33,13 @@ Interpretability tools are powerful but often scattered and code-intensive. Know
 - 🧩 Modular tool agents: drop in/out new tools with minimal coupling.
 - 🖥️ Chat UI with interactive visualizations and image-based explanations.
 - 🏠 Local-friendly (Ollama) and cloud-agnostic configuration.
+---
 
 ## Architecture 🧭
 
 ### Orchestrator LLM (Supervisor)
 Routes user queries to agents (embedding/RAG + direct prediction), then explains results in plain language.
+---
 
 ### Tool Agents
 
@@ -41,19 +48,23 @@ Routes user queries to agents (embedding/RAG + direct prediction), then explains
 
  The TransformerLens agent is responsible for mechanistic interpretability at the token, head, and layer level. When invoked, it loads the selected model through the HookedTransformer interface and runs targeted inspections such as visualizing attention patterns, intervening on activations, or performing activation patching experiments. For example, it can ablate a specific head to test its importance, or swap hidden states between prompts to reveal causal circuits like induction heads. The agent outputs structured visualizations (e.g., attention heatmaps) along with numerical summaries such as logit-difference scores. These results are then passed back to the Orchestrator, which explains them in natural language, making low-level analyses intelligible to non-expert users.
 
+---
 
 #### BertViz Agent — attention visualization (HF model + tokenizer)
 ![BertViz Diagram](src/assets/bertviz_agent.png)
 The BertViz agent focuses on interactive visualization of attention across layers and heads. When the Orchestrator routes a query about “how the model attends,” this agent tokenizes the input, extracts attention weights from the model, and renders them in intuitive formats such as head-view or model-view grids. Users can explore which tokens attend to which others, compare attention across heads, and trace long-range dependencies in sentences.
 Although the raw visualizations can be dense, the Orchestrator pairs them with guided explanations that highlight patterns, such as which heads focus on syntactic structure or coreference resolution. This agent therefore lowers the barrier to inspecting the distributed focus of large models.
+---
 
 #### RAG Explainer — retrieves/cites relevant literature
 ![RAG Diagram](src/assets/rag_agent.png)
 The RAG Explainer agent grounds interpretability results in the broader literature. When a user asks “why does this happen?” or seeks context for a visualization, the agent retrieves relevant documents from a curated library of explainable AI papers and interpretability resources. It then synthesizes these references into concise explanations that accompany the tool output, ensuring results are not only descriptive but also connected to prior research. 
+---
 
 #### BiasEval Agent — toxicity, regard, HONEST scoring
 The Bias Evaluator agent operationalizes fairness analysis by probing models with benchmark datasets. It uses prompts from sources such as Real Toxicity Prompts (for abusive language), BOLD (for demographic framing across gender, race, and ideology), and HONEST (for hurtful lexical completions). Model continuations are generated and then scored against three metrics: toxicity (detecting harmful speech), regard (sentiment polarity toward groups), and HONEST (frequency of biased or hurtful completions). The agent aggregates these results into interpretable statistics, such as toxicity ratios or average regard differences between demographic groups. These outputs allow users to directly assess whether their model behaves unevenly or risks producing unsafe content, with the Orchestrator translating numerical scores into accessible insights.
 ![BiasEval Diagram](src/assets/bias_eval_agent.png)
+---
 
 ### User Interface
 Web chat + interactive views. Users can upload models, run tasks, and inspect results without writing code.
