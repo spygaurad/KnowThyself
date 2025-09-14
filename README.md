@@ -41,6 +41,7 @@ Interpretability tools are powerful but often scattered and code-intensive. Know
 ### Orchestrator LLM (Supervisor)
 
 Routes user queries to agents (embedding/RAG + direct prediction), then explains results in plain language.
+
 ---
 
 ### Tool Agents
@@ -59,6 +60,7 @@ Routes user queries to agents (embedding/RAG + direct prediction), then explains
    
 The BertViz agent focuses on interactive visualization of attention across layers and heads. When the Orchestrator routes a query about “how the model attends,” this agent tokenizes the input, extracts attention weights from the model, and renders them in intuitive formats such as head-view or model-view grids. Users can explore which tokens attend to which others, compare attention across heads, and trace long-range dependencies in sentences.
     Although the raw visualizations can be dense, the Orchestrator pairs them with guided explanations that highlight patterns, such as which heads focus on syntactic structure or coreference resolution. This agent therefore lowers the barrier to inspecting the distributed focus of large models.
+
 ---
 
 #### RAG Explainer — retrieves/cites relevant literature
@@ -66,6 +68,7 @@ The BertViz agent focuses on interactive visualization of attention across layer
 ![RAG Diagram](src/assets/rag_agent.png)
 
 The RAG Explainer agent grounds interpretability results in the broader literature. When a user asks “why does this happen?” or seeks context for a visualization, the agent retrieves relevant documents from a curated library of explainable AI papers and interpretability resources. It then synthesizes these references into concise explanations that accompany the tool output, ensuring results are not only descriptive but also connected to prior research. 
+
 ---
 
 #### BiasEval Agent — toxicity, regard, HONEST scoring
@@ -73,6 +76,7 @@ The RAG Explainer agent grounds interpretability results in the broader literatu
 ![BiasEval Diagram](src/assets/bias_eval_agent.png)
 
 The Bias Evaluator agent operationalizes fairness analysis by probing models with benchmark datasets. It uses prompts from sources such as Real Toxicity Prompts (for abusive language), BOLD (for demographic framing across gender, race, and ideology), and HONEST (for hurtful lexical completions). Model continuations are generated and then scored against three metrics: toxicity (detecting harmful speech), regard (sentiment polarity toward groups), and HONEST (frequency of biased or hurtful completions). The agent aggregates these results into interpretable statistics, such as toxicity ratios or average regard differences between demographic groups. These outputs allow users to directly assess whether their model behaves unevenly or risks producing unsafe content, with the Orchestrator translating numerical scores into accessible insights.
+
 ---
 
 ### User Interface
