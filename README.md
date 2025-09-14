@@ -1,8 +1,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Overview
-[▶ Watch the demo video](https://streamable.com/l88z0p)
-Live Demo: http://34.229.129.135:4173
+# Overview
+## [▶ Watch the demo video](https://streamable.com/l88z0p)
+## [Live Demo:] (http://34.229.129.135:4173)
 
 KnowThyself helps students, engineers, and researchers explore how language models work. Users upload a model, ask natural-language questions, and receive interactive visualizations with grounded explanations. A supervisor LLM routes tasks to modular tool agents (TransformerLens, BertViz, Bias Evaluator), while a RAG component cites relevant interpretability literature. The system supports local deployment (e.g., Ollama) and common open-model families (e.g., GPT-2, Llama).
 
