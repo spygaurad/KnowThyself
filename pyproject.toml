@@ -2,9 +2,6 @@
 name = "KnowThyself"
 version = "0.0.1"
 description = "An Agentic Assistant for LLM Interpretability"
-authors = [
-    { name = "", email = "" },
-]
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"

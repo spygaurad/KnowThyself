@@ -10,7 +10,8 @@ __pycache__/
 .github
 .langgraph_api/
 *.pckl
-
+KnowThyself.egg-info/
+.vscode/
 # *.png
 
 *.egg-info/
