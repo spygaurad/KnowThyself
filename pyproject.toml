@@ -1,9 +1,9 @@
 [project]
-name = "kyllm-agent"
-version = "0.0.2"
-description = "An agent in LangGraph that provides access to different interpretation tools for LLM understanding and interpretability"
+name = "KnowThyself"
+version = "0.0.1"
+description = "An Agentic Assistant for LLM Interpretability"
 authors = [
-    { name = "Suraj Prasai", email = "suraj.prasai97@gmail.com" },
+    { name = "", email = "" },
 ]
 readme = "README.md"
 license = { text = "MIT" }
