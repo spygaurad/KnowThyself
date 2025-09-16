@@ -4,7 +4,7 @@ DEPLOYEMENT_TYPE = "ollama" # Can use ChatGPT API's later on.
 #Embedding Models
 EMBEDDING_MODEL = 'nomic-embed-text'
 DEFAULT_USER_MODEL = 'gpt2-small' #Default user model for non-ollama backends
-DEFAULT_BERTVIZ_MODEL = "microsoft/xtremedistil-l12-h384-uncased"  # HuggingFace model name for BertViz workflow
+DEFAULT_BERTVIZ_MODEL = "google-bert/bert-base-uncased"  # HuggingFace model name for BertViz workflow
 
 # --- Toxicity eval config ---
 TOXICITY_DATASET_NAME = "allenai/real-toxicity-prompts"
