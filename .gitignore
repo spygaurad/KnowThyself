@@ -7,10 +7,11 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+.github
 .langgraph_api/
 *.pckl
-
+KnowThyself.egg-info/
+.vscode/
 # *.png
 
 *.egg-info/

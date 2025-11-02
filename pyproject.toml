@@ -1,10 +1,7 @@
 [project]
-name = "kyllm-agent"
-version = "0.0.2"
-description = "An agent in LangGraph that provides access to different interpretation tools for LLM understanding and interpretability"
-authors = [
-    { name = "Suraj Prasai", email = "suraj.prasai97@gmail.com" },
-]
+name = "KnowThyself"
+version = "0.0.1"
+description = "An Agentic Assistant for LLM Interpretability"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
@@ -34,11 +31,6 @@ dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = ["kyllm_agent"]
-[tool.setuptools.package-dir]
-"kyllm_agent" = "src/kyllm_agent"
 
 
 [tool.setuptools.package-data]

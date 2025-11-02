@@ -1,159 +1,140 @@
-# --- NEW / REPLACED CODE BELOW ------------------------------------------------
-# Add these imports (safe if duplicated)
-import re
-from typing import Optional, Any
-from pydantic import BaseModel, validator
-from langchain.output_parsers import PydanticOutputParser
-from langchain.prompts import PromptTemplate
-from PIL import Image
-from io import BytesIO
-import json
-
-from src.knowthyself.utils.graph_utils import get_most_recent_human_message, AgentState, UserInput
-from src.knowthyself.utils.model_manager import ModelManager
+# --- TRANSFORMERLENS AGENT (uses shared unified extractor) -------------------
 import os
-from src.knowthyself.tools.transformerlens.transformerlens_utils import attention_patterns, get_attention_data_for_visualizer, convert_to_base64
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from typing import Dict, Any
 
-from src.knowthyself.utils.prompts import transformerlens_extraction_prompt
+import re
+from PIL import Image
+from langchain_core.messages import AIMessage
 
-
-# Keep your original prompt text if you like (not required), but we’ll drive strict formatting
-# via PydanticOutputParser + format_instructions.
-extraction_prompt = (
-    "You are an information extractor and sentence creator.\n"
-    "Return ONLY the JSON described by {format_instructions} with fields:\n"
-    "- user_question: one original, realistic, self-contained sentence (8–22 words).\n"
-    "- layer_number: numerical layer index if the user stated one; else null.\n"
-    "- head_number: numerical head index if the user stated one; else null.\n\n"
-    "Strict rules for user_question:\n"
-    "1) Do NOT paraphrase or repeat the user's instruction. Create a NEW sentence.\n"
-    "2) Do NOT mention task words: attention, head, heatmap, layer, token, visualize, plot, compute, generate, analyze.\n"
-    "3) If the request includes quoted token(s), include them in a natural way; minor inflections like pluralization "
-    "   or casing are allowed (e.g., 'cat and dog' → 'Cats and dogs').\n"
-    "4) Match the user's language unless another language is explicitly requested.\n"
-    "5) Be creative but plausible and context-appropriate; use generic names if needed.\n"
-    "6) If multiple tokens are provided, incorporate all of them naturally in the same sentence.\n\n"
-    "Number extraction rules:\n"
-    "- Only extract layer/head indices if explicitly provided; otherwise return null.\n\n"
-    "Examples (for style; do not copy):\n"
-    "User: \"attention head heatmap at layer 7 for sentence with token 'cat and dog'\"\n"
-    "user_question → \"Cats and dogs often quarrel, yet they can become the best of friends.\"\n"
-    "layer_number → \"7\"\n"
-    "head_number  → null\n\n"
-    "User: \"Study attention in layer 7 for sentence with token 'she'\"\n"
-    "user_question → \"Maria is on leave today; she isn't feeling well.\"\n"
-    "layer_number → \"7\"\n"
-    "head_number  → null\n\n"
-    "User request:\n{messages}"
+from src.knowthyself.utils.graph_utils import get_most_recent_human_message, AgentState
+from src.knowthyself.utils.model_manager import ModelManager
+from src import agent_config
+# your existing utilities for attention rendering
+from src.knowthyself.tools.transformerlens.transformerlens_utils import (
+    attention_patterns,
+    convert_to_base64,
 )
 
-
-class ExtractionSchema(BaseModel):
-    user_question: str
-    layer_number: Optional[str] = None   # keep as str | None to match your spec
-    head_number: Optional[str] = None
-
-    # Coerce ints/"None"/"null"/"" -> proper str or None
-    @validator("layer_number", "head_number", pre=True)
-    def _coerce_str_or_none(cls, v: Any):
-        if v is None:
-            return None
-        s = str(v).strip()
-        if s.lower() in {"", "none", "null"}:
-            return None
-        if s.isdigit():
-            return str(int(s))
-        return s
-
-def _backfill_layer_head(args: dict, user_text: str) -> dict:
-    """Optional: if LLM missed numbers, backfill from the raw text."""
-    if args.get("layer_number") is None:
-        m = re.search(r"\blayer\s+(\d+)\b", user_text, flags=re.IGNORECASE)
-        if m:
-            args["layer_number"] = str(int(m.group(1)))
-    if args.get("head_number") is None:
-        m = re.search(r"\bhead\s+(\d+)\b", user_text, flags=re.IGNORECASE)
-        if m:
-            args["head_number"] = str(int(m.group(1)))
-    return args
-
-def extract_required_args(user_message: str, llm) -> dict:
-    """
-    Returns a dict with keys:
-      - user_question: str
-      - layer_number: Optional[str]
-      - head_number : Optional[str]
-    """
-    parser = PydanticOutputParser(pydantic_object=ExtractionSchema)
-    prompt = PromptTemplate(
-        template=extraction_prompt,
-        input_variables=["messages"],
-        partial_variables={"format_instructions": parser.get_format_instructions()},
-    )
-    raw = (prompt | llm).invoke({"messages": user_message})
-    text = getattr(raw, "content", raw)  # handle AIMessage or string
-    try:
-        obj: ExtractionSchema = parser.parse(text)
-        data = obj.dict()
-    except Exception:
-        # Very defensive fallback
-        data = {"user_question": user_message, "layer_number": None, "head_number": None}
-
-    # Optional regex backfill
-    data = _backfill_layer_head(data, user_message)
-    return data
+# NEW: shared unified extractor (exact sentence, LLM-constrained synthesis, numbers)
+from src.knowthyself.utils.sentence_extractor import extract_sentence_unified
 
 
 def transformerlens_agent(state: AgentState, model_manager: ModelManager) -> dict:
     """
-    - Uses the orchestrator LLM to parse user args (sentence, layer/head)
-    - Forces user backend to HookedTransformer ('gpt2-small') for attention viz
-    - Generates attention image and asks the orchestrator to explain it
+    - Extracts a sentence + (layer/head) using the shared unified extractor:
+        * exact user sentence if present (verbatim),
+        * else LLM-synthesized sentence that MUST include required terms (e.g., 'meteor'),
+        * else fallback LLM generator (provided by caller).
+      Returns target_layer/head as 1-based (if present).
+    - Loads HookedTransformer ('gpt2-small') via ModelManager for attention viz.
+    - Renders attention heatmap PNG and asks orchestrator to explain it (vision input).
     """
     MAIN_LLM = model_manager.get_orchestrator()
 
-    # Switch to HookedTransformer backend (lazy) for attention tooling
+    # Switch to HookedTransformer backend for TransformerLens
     try:
-        model_manager.set_user_model(backend="hooked", model_name="gpt2-small")
+        # Get the currently configured user model name (already loaded earlier)
+        current_user_model_name = model_manager.get_user_model_name()
+
+        supported_transformerlens = sorted(list(getattr(agent_config, "TRANSFORMERLENS_SUPPORTED_MODELS", set())))
+
+        if current_user_model_name not in supported_transformerlens:
+            supported_str = "\n".join(f"- **{m}**" for m in supported_transformerlens) or "(none configured)"
+            return {
+                "messages": [
+                    AIMessage(
+                        content=(
+                            f"The current user model **`{current_user_model_name}`** is not supported for **TransformerLens**.\n\n"
+                            f"**Supported TransformerLens models:**\n"
+                            f"{supported_str}\n\n"
+                        ),
+                        type="ai",
+                    )
+                ]
+            }
+
+        # If supported, use the already loaded model/tokenizer
+
         USER_MODEL = model_manager.get_user_model()
+        if not hasattr(USER_MODEL, "run_with_cache"):
+            raise RuntimeError(f"Loaded user model {USER_MODEL} is not a HookedTransformer required for TransformerLens.")
+
     except Exception as e:
         return {
             "messages": [
                 AIMessage(
-                    content=f"Failed to load the Hooked Transformer model ('gpt2-small'). "
-                            f"Ensure it’s available for TransformerLens. Error: {e}",
-                    type="ai"
+                    content=f"Failed to use the current user model for TransformerLens. Error: {e}",
+                    type="ai",
                 )
             ]
         }
 
     user_text = get_most_recent_human_message(state) or ""
 
-    args = extract_required_args(user_text, MAIN_LLM)
+    # Fallback LLM generator: if unified extractor can't find a sentence and has no required terms,
+    # this function will be called; it MUST return {"user_sentence": "..."}.
+    # Here we just ask the orchestrator to craft a plain sentence (8–22 words) with no task words.
+    def _tlens_llm_fallback(u_text: str) -> Dict[str, Any]:
+        prompt = (
+            "Create one realistic, natural sentence (8–22 words) about an everyday situation.\n"
+            "Do NOT mention task words like attention, layer, head, tokens, visualize, plot, compute.\n"
+            "Return ONLY the sentence, no quotes."
+        )
+        raw = MAIN_LLM.invoke(prompt)
+        content = getattr(raw, "content", raw)
+        # Take first line, strip, ensure terminal punctuation
+        sent = str(content or "").strip().splitlines()[0] if content else "The weather changed quickly over the afternoon."
+        if sent and sent[-1] not in ".!?":
+            sent += "."
+        return {"user_sentence": sent}
 
-    # Required inputs
-    text = args["user_question"]
-    layer_str = args.get("layer_number")
-    head_str  = args.get("head_number")
-    print("*" * 100)
-    print(args)
-    # Convert to 0-based indices with safe defaults (layer=0, head=0 if unspecified)
-    layer_idx = int(layer_str) - 1 if layer_str is not None else 0
-    head_idx  = int(head_str)  - 1 if head_str  is not None else 0
+    # Use the shared unified extractor (ALWAYS parses layer/head; uses LLM for constrained synthesis)
+    uargs = extract_sentence_unified(
+        user_message=user_text,
+        llm_fallback_fn=_tlens_llm_fallback,
+        llm=MAIN_LLM,  # enables constrained synthesis when required terms are present
+    )
+
+    text = uargs["user_sentence"]
+    layer_1b = uargs.get("target_layer")  # 1-based or None
+    head_1b  = uargs.get("target_head")   # 1-based or None
+
+    # Convert to 0-based indices with safe defaults (layer=0, head=0)
+    layer_idx = (layer_1b - 1) if isinstance(layer_1b, int) else 0
+    head_idx  = (head_1b  - 1) if isinstance(head_1b, int) else 0
 
     # Render attention to file
     filepath = os.path.join(
         os.path.dirname(os.path.abspath(__file__)),
-        "..", "..", "..", "src", "files", "documents", "results", "attention_output.png"
+        "..", "..", "..", "src", "files", "documents", "results", "attention_output.png",
     )
     gpt2_str_tokens, gpt2_attn = attention_patterns(text, USER_MODEL, layer_idx, head_idx, filepath)
 
-    # Explain the generated attention image
+    # Explain the generated attention image with vision context
     pil_image = Image.open(filepath)
     image_b64 = convert_to_base64(pil_image)
     llm_with_image_context = MAIN_LLM.bind(images=[image_b64])
-    response = llm_with_image_context.invoke("Explain the attention pattern in the image")
+
+    explanation = llm_with_image_context.invoke(
+        "The provided image shows a token–token attention map for the sentence above. "
+        "Summarize the most salient attention patterns (e.g., punctuation, name/entity links, subject–verb ties), "
+        "and relate them back to how the model might be using context."
+    )
+    explanation_text = getattr(explanation, "content", explanation)
+
+    # Build response content (shows original request + actual sentence used)
+    layer_head_str = []
+    if isinstance(layer_1b, int):
+        layer_head_str.append(f"Layer: {layer_1b}")
+    if isinstance(head_1b, int):
+        layer_head_str.append(f"Head: {head_1b}")
+    layer_head_inline = (" (" + ", ".join(layer_head_str) + ")") if layer_head_str else ""
+
+    response = (
+        f"**User request**: {user_text}\n\n"
+        f"**Sentence used for attention**: {text}{layer_head_inline}\n\n"
+        f"{explanation_text}"
+    )
 
     return {
         "messages": [
@@ -167,4 +148,4 @@ def transformerlens_agent(state: AgentState, model_manager: ModelManager) -> dic
             )
         ]
     }
-# --- NEW / REPLACED CODE ABOVE ------------------------------------------------
+# --- END TRANSFORMERLENS AGENT -----------------------------------------------

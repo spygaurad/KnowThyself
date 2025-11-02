@@ -11,6 +11,8 @@ from langchain_core.messages import AIMessage
 from src.knowthyself.utils.graph_utils import get_most_recent_human_message, AgentState
 from src.knowthyself.utils.model_manager import ModelManager
 from src import agent_config
+from src.knowthyself.utils.sentence_extractor import extract_sentence_unified
+from functools import partial
 
 from bertviz import model_view
 try:
@@ -72,6 +74,7 @@ def _save_model_view_html(attention, tokens, out_path: str) -> str:
         f.write(html_str)
     return out_path
 
+
 # ---------------------------
 # Agent
 # ---------------------------
@@ -83,28 +86,60 @@ def bertviz_agent(state: AgentState, model_manager: ModelManager) -> dict:
     - Returns path to HTML inside AIMessage.additional_kwargs
     """
     MAIN_LLM = model_manager.get_orchestrator()
-    user_model_name = agent_config.DEFAULT_BERTVIZ_MODEL
-
+    # user_model_name = agent_config.DEFAULT_BERTVIZ_MODEL
     try:
-        model_manager.set_user_model(backend="huggingface", model_name=user_model_name)
-        
+        # Get the currently configured user model name (already loaded earlier)
+        current_user_model_name = model_manager.get_user_model_name()
+
+        supported_bertviz = sorted(list(getattr(agent_config, "BERTVIZ_SUPPORTED_MODELS", set())))
+
+        if current_user_model_name not in supported_bertviz:
+            supported_str = "\n".join(f"- **{m}**" for m in supported_bertviz) or "(none configured)"
+            return {
+                "messages": [
+                    AIMessage(
+                        content=(
+                            f"The current user model **`{current_user_model_name}`** is not supported for **BertViz**.\n\n"
+                            f"**Supported BertViz models:**\n"
+                            f"{supported_str}\n\n"
+                            "Please change the user model to one of these "
+                            "(for example: `Update user_model bert-base-uncased`) and try again."
+                        ),
+                        type="ai",
+                    )
+                ]
+            }
+
+        # If supported, use the already loaded model/tokenizer
         USER_MODEL = model_manager.get_user_model()
         if isinstance(USER_MODEL, (tuple, list)) and len(USER_MODEL) >= 2:
             hf_model, hf_tokenizer = USER_MODEL[0], USER_MODEL[1]
-        # hf_model, hf_tokenizer = USER_MODEL["model"], USER_MODEL["tokenizer"]
+        else:
+            raise RuntimeError("Loaded user model is not a (HFModel, HFTokenizer) pair required for BertViz.")
+
     except Exception as e:
         return {
             "messages": [
                 AIMessage(
-                    content=f"Failed to load HuggingFace model '{user_model_name}'. Error: {e}. Loading Default model: {agent_config.DEFAULT_BERTVIZ_MODEL}",
+                    content=f"Failed to use the current user model for BertViz. Error: {e}",
                     type="ai",
                 )
             ]
         }
 
+
+    def _bertviz_llm_fallback(u_text: str) -> Dict[str, Any]:
+        return extract_sentence_arg(u_text, MAIN_LLM)  # must return {"user_sentence": ...}
+
     user_text = get_most_recent_human_message(state) or ""
-    args = extract_sentence_arg(user_text, MAIN_LLM)
-    sentence = args["user_sentence"]
+    # args = extract_sentence_arg(user_text, MAIN_LLM)
+    uargs = extract_sentence_unified(
+    user_message=user_text,
+    llm_fallback_fn=_bertviz_llm_fallback,
+    llm=MAIN_LLM,  # enables LLM-based constrained synthesis (e.g., "meteor")
+    )
+    sentence = uargs["user_sentence"]
+
 
     try:
         inputs = hf_tokenizer.encode(sentence, return_tensors="pt")
@@ -141,8 +176,9 @@ def bertviz_agent(state: AgentState, model_manager: ModelManager) -> dict:
 
     try:
         guide = MAIN_LLM.invoke(
-            "Provide a short (2–3 sentence) guide on interpreting the BertViz model view. "
-            "Explain what the attention grids and heads represent, simply."
+            "The model view provides a birds-eye view of attention throughout the entire model. Each cell shows the attention weights for a particular head, indexed by layer (row) and head (column). The lines in each cell represent the attention from one token (left) to another (right), with line weight proportional to the attention value (ranges from 0 to 1)."
+            "Provide a short 3 - 4 sentence to explain what a model view is to a new user."
+            "Explain how they can be used for interpretable AI. Use **bold** to highlight key terms."
         )
         guide_text = getattr(guide, "content", guide)
     except Exception:
@@ -151,7 +187,7 @@ def bertviz_agent(state: AgentState, model_manager: ModelManager) -> dict:
     return {
         "messages": [
             AIMessage(
-                content=f"BertViz visualization generated for: “{sentence}”\n\nModel: {user_model_name}\n\n{guide_text}",
+                content=f"**BertViz visualization generated for**: “{sentence}”\n\n**Model**: {current_user_model_name}\n\n{guide_text}",
                 additional_kwargs={"bert_viz_view": saved_path},
                 type="ai",
             )

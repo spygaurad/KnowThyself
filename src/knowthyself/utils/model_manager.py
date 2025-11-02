@@ -28,7 +28,7 @@ class ModelManager:
         orchestrator_deployment: str | None = None,
         orchestrator_model: str | None = None,
         # User model defaults (make Ollama the default backend)
-        user_backend: str = "ollama",  # "ollama" | "hooked" | "bertviz"
+        user_backend: str = "hooked",  # "ollama" | "hooked" | "bertviz"
         user_model_name: Optional[str] = None,  # fallback to agent_config.GPT_USER_MODEL or "llama3"
         # Embeddings
         embedding_model: str = "nomic-embed-text",
@@ -48,6 +48,7 @@ class ModelManager:
 
         # --- Embeddings ---
         self._emb = OllamaEmbeddings(model=embedding_model)
+
 
     # =========================
     # Orchestrator
@@ -156,3 +157,18 @@ class ModelManager:
     def embed(self, text: str) -> list[float]:
         """Return embedding vector using Ollama embeddings."""
         return self._emb.embed_query(text)
+
+    def get_user_model_name(self) -> str:
+        """Return the configured user model name (does not load it)."""
+        with self._lock:
+            return self._user_model_name
+
+    def get_user_backend(self) -> str:
+        """Return the configured user backend (does not load it)."""
+        with self._lock:
+            return self._user_backend
+
+    def get_orchestrator_config(self) -> tuple[str, str]:
+        """Return (deployment_type, model_name) for orchestrator (does not load it)."""
+        with self._lock:
+            return self._orch_deployment, self._orch_model

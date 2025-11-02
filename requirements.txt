@@ -68,7 +68,6 @@ jsonpatch==1.33
 jsonpointer==3.0.0
 jsonschema_rs==0.25.1
 kiwisolver==1.4.8
--e git+ssh://git@github.com/spygaurad/KnowYourLLM@92c22efd6dd8d809ab5cd8125c8ac3ea465d7af8#egg=kyllm_agent
 langchain==0.3.7
 langchain-anthropic==0.2.4
 langchain-community==0.3.5
