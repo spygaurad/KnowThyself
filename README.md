@@ -2,7 +2,6 @@
 
 ## Demos
 - [▶ Watch the demo video](https://www.youtube.com/watch?v=Y2DAaMU2Ubs)
-- [▶ Live Demo ](http://34.229.129.135:4173)
 
 ---
 ## Overview
