@@ -1,7 +1,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Demos
-- [▶ Watch the demo video](https://streamable.com/l88z0p)
+- [▶ Watch the demo video](https://www.youtube.com/watch?v=Y2DAaMU2Ubs)
 - [▶ Live Demo ](http://34.229.129.135:4173)
 
 ---
